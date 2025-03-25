@@ -1,17 +1,18 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.ksp)
 }
 
 android {
     namespace = "com.example.logbook2"
-    compileSdk = 35
+    compileSdk = 34 // Hạ từ 35 xuống 34
 
     defaultConfig {
         applicationId = "com.example.logbook2"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 34 // Hạ từ 35 xuống 34
         versionCode = 1
         versionName = "1.0"
 
@@ -40,7 +41,12 @@ android {
 }
 
 dependencies {
+    // Room dependencies
+    implementation(libs.room.runtime)
+    ksp(libs.room.compiler)
+    implementation(libs.room.ktx)
 
+    // Các dependency hiện có
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

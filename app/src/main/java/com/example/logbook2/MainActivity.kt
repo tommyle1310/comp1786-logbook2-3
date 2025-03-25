@@ -3,11 +3,11 @@ package com.example.logbook2
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,9 +15,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.logbook2.data.TodoRepository
+import com.example.logbook2.data.database.DatabaseProvider
+import com.example.logbook2.data.entity.Todo
 import com.example.logbook2.ui.theme.Logbook2Theme
+import com.example.logbook2.viewmodel.TodoViewModel
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 
 class MainActivity : ComponentActivity() {
+    // Tạo ViewModel với Factory để truyền Repository
+    private val todoViewModel: TodoViewModel by viewModels {
+        object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                val database = DatabaseProvider.getDatabase(applicationContext)
+                val repository = TodoRepository(database.todoDao())
+                return TodoViewModel(repository) as T
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -26,24 +44,20 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    TodoListScreen()
+                    TodoListScreen(todoViewModel)
                 }
             }
         }
     }
 }
 
-// data class to store obj
-data class TodoItem(val id: Int, val title: String, val isCompleted: Boolean)
-
 @Composable
-fun TodoListScreen() {
-    // State to store tasks
-    var todoItems by remember { mutableStateOf(listOf<TodoItem>()) }
-    // State to store inpu tquery
+fun TodoListScreen(viewModel: TodoViewModel) {
+    // Lấy danh sách todos từ ViewModel
+    val todoItems by viewModel.allTodos.collectAsState(initial = emptyList())
+    // State để lưu input
     var newTaskTitle by remember { mutableStateOf("") }
-    // increment id variable
-    var nextId by remember { mutableStateOf(0) }
+    var newTaskDescription by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -51,7 +65,6 @@ fun TodoListScreen() {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-
         Text(
             text = "Todo List",
             fontSize = 24.sp,
@@ -59,36 +72,43 @@ fun TodoListScreen() {
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        // row for creating new task
-        Row(
+        // Row để nhập task mới
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(bottom = 16.dp)
         ) {
             OutlinedTextField(
                 value = newTaskTitle,
                 onValueChange = { newTaskTitle = it },
-                label = { Text("Enter a new task") },
+                label = { Text("Enter task title") },
                 modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp)
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+            )
+            OutlinedTextField(
+                value = newTaskDescription,
+                onValueChange = { newTaskDescription = it },
+                label = { Text("Enter task description") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
             )
             Button(
                 onClick = {
                     if (newTaskTitle.isNotBlank()) {
-                        todoItems = todoItems + TodoItem(nextId, newTaskTitle, false)
-                        nextId += 1
-                        newTaskTitle = "" // set text input
+                        viewModel.insert(newTaskTitle, newTaskDescription)
+                        newTaskTitle = ""
+                        newTaskDescription = ""
                     }
                 },
-                modifier = Modifier.padding(start = 8.dp)
+                modifier = Modifier.align(Alignment.End)
             ) {
                 Text("Add Task")
             }
         }
 
-        // tasks display
+        // Hiển thị danh sách task
         if (todoItems.isEmpty()) {
             Text(
                 text = "No tasks available",
@@ -104,13 +124,10 @@ fun TodoListScreen() {
                     TodoItemRow(
                         item = item,
                         onToggleComplete = { updatedItem ->
-                            todoItems = todoItems.map {
-                                if (it.id == updatedItem.id) updatedItem.copy(isCompleted = !updatedItem.isCompleted)
-                                else it
-                            }
+                            viewModel.update(updatedItem)
                         },
                         onDelete = { deletedItem ->
-                            todoItems = todoItems.filter { it.id != deletedItem.id }
+                            viewModel.delete(deletedItem)
                         }
                     )
                 }
@@ -121,9 +138,9 @@ fun TodoListScreen() {
 
 @Composable
 fun TodoItemRow(
-    item: TodoItem,
-    onToggleComplete: (TodoItem) -> Unit,
-    onDelete: (TodoItem) -> Unit
+    item: Todo,
+    onToggleComplete: (Todo) -> Unit,
+    onDelete: (Todo) -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -137,33 +154,44 @@ fun TodoItemRow(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Checkbox mark completed task
+            // Checkbox để đánh dấu hoàn thành
             Checkbox(
                 checked = item.isCompleted,
-                onCheckedChange = { onToggleComplete(item) },
+                onCheckedChange = {
+                    onToggleComplete(item.copy(isCompleted = !item.isCompleted))
+                },
                 modifier = Modifier.padding(end = 8.dp)
             )
 
-            Text(
-                text = item.title,
-                fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.onBackground,
+            // Hiển thị tiêu đề và mô tả
+            Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(end = 8.dp),
-                style = if (item.isCompleted) {
-                    MaterialTheme.typography.bodyMedium.copy(
-                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
-                    )
-                } else {
-                    MaterialTheme.typography.bodyMedium
-                }
-            )
+                    .padding(end = 8.dp)
+            ) {
+                Text(
+                    text = item.title,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    style = if (item.isCompleted) {
+                        MaterialTheme.typography.bodyMedium.copy(
+                            textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                        )
+                    } else {
+                        MaterialTheme.typography.bodyMedium
+                    }
+                )
+                Text(
+                    text = item.description,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                )
+            }
 
-            // delete btn
+            // Nút xóa
             IconButton(onClick = { onDelete(item) }) {
                 Icon(
-                    imageVector = androidx.compose.material.icons.Icons.Default.Delete,
+                    imageVector = Icons.Default.Delete,
                     contentDescription = "Delete task",
                     tint = MaterialTheme.colorScheme.error
                 )
