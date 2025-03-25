@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.Logbook2" parent="android:Theme.Light.NoTitleBar">
+        <item name="android:statusBarColor">@android:color/white</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>
