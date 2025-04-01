@@ -25,7 +25,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 
 class MainActivity : ComponentActivity() {
-    // Tạo ViewModel với Factory để truyền Repository
     private val todoViewModel: TodoViewModel by viewModels {
         object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -53,9 +52,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun TodoListScreen(viewModel: TodoViewModel) {
-    // Lấy danh sách todos từ ViewModel
     val todoItems by viewModel.allTodos.collectAsState(initial = emptyList())
-    // State để lưu input
     var newTaskTitle by remember { mutableStateOf("") }
     var newTaskDescription by remember { mutableStateOf("") }
 
@@ -72,19 +69,18 @@ fun TodoListScreen(viewModel: TodoViewModel) {
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        // Row để nhập task mới
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)
         ) {
             OutlinedTextField(
-                value = newTaskTitle,
-                onValueChange = { newTaskTitle = it },
-                label = { Text("Enter task title") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp)
+                    value = newTaskTitle,
+            onValueChange = { newTaskTitle = it },
+            label = { Text("Enter task title") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp)
             )
             OutlinedTextField(
                 value = newTaskDescription,
@@ -108,7 +104,6 @@ fun TodoListScreen(viewModel: TodoViewModel) {
             }
         }
 
-        // Hiển thị danh sách task
         if (todoItems.isEmpty()) {
             Text(
                 text = "No tasks available",
@@ -154,7 +149,6 @@ fun TodoItemRow(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Checkbox để đánh dấu hoàn thành
             Checkbox(
                 checked = item.isCompleted,
                 onCheckedChange = {
@@ -163,7 +157,6 @@ fun TodoItemRow(
                 modifier = Modifier.padding(end = 8.dp)
             )
 
-            // Hiển thị tiêu đề và mô tả
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -188,7 +181,6 @@ fun TodoItemRow(
                 )
             }
 
-            // Nút xóa
             IconButton(onClick = { onDelete(item) }) {
                 Icon(
                     imageVector = Icons.Default.Delete,
