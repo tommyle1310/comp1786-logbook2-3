@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -55,6 +56,8 @@ fun TodoListScreen(viewModel: TodoViewModel) {
     val todoItems by viewModel.allTodos.collectAsState(initial = emptyList())
     var newTaskTitle by remember { mutableStateOf("") }
     var newTaskDescription by remember { mutableStateOf("") }
+    var isEditing by remember { mutableStateOf(false) }
+    var editingTodoId by remember { mutableStateOf<Int?>(null) }
 
     Column(
         modifier = Modifier
@@ -75,12 +78,12 @@ fun TodoListScreen(viewModel: TodoViewModel) {
                 .padding(bottom = 16.dp)
         ) {
             OutlinedTextField(
-                    value = newTaskTitle,
-            onValueChange = { newTaskTitle = it },
-            label = { Text("Enter task title") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp)
+                value = newTaskTitle,
+                onValueChange = { newTaskTitle = it },
+                label = { Text("Enter task title") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
             )
             OutlinedTextField(
                 value = newTaskDescription,
@@ -93,14 +96,30 @@ fun TodoListScreen(viewModel: TodoViewModel) {
             Button(
                 onClick = {
                     if (newTaskTitle.isNotBlank()) {
-                        viewModel.insert(newTaskTitle, newTaskDescription)
+                        if (isEditing) {
+                            val todoId = editingTodoId
+                            if (todoId != null) {
+                                viewModel.update(
+                                    Todo(
+                                        id = todoId,
+                                        title = newTaskTitle,
+                                        description = newTaskDescription,
+                                        isCompleted = false
+                                    )
+                                )
+                                isEditing = false
+                                editingTodoId = null
+                            }
+                        } else {
+                            viewModel.insert(newTaskTitle, newTaskDescription)
+                        }
                         newTaskTitle = ""
                         newTaskDescription = ""
                     }
                 },
                 modifier = Modifier.align(Alignment.End)
             ) {
-                Text("Add Task")
+                Text(if (isEditing) "Update Task" else "Add Task")
             }
         }
 
@@ -123,6 +142,12 @@ fun TodoListScreen(viewModel: TodoViewModel) {
                         },
                         onDelete = { deletedItem ->
                             viewModel.delete(deletedItem)
+                        },
+                        onEdit = { editItem ->
+                            isEditing = true
+                            editingTodoId = editItem.id
+                            newTaskTitle = editItem.title
+                            newTaskDescription = editItem.description
                         }
                     )
                 }
@@ -135,7 +160,8 @@ fun TodoListScreen(viewModel: TodoViewModel) {
 fun TodoItemRow(
     item: Todo,
     onToggleComplete: (Todo) -> Unit,
-    onDelete: (Todo) -> Unit
+    onDelete: (Todo) -> Unit,
+    onEdit: (Todo) -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -178,6 +204,14 @@ fun TodoItemRow(
                     text = item.description,
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                )
+            }
+
+            IconButton(onClick = { onEdit(item) }) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit task",
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
 
